@@ -1,0 +1,121 @@
+---
+swagger: "2.0"
+info:
+  x-ibm-name: "model"
+  title: "cpdapimodel"
+  version: "1.0.0"
+schemes:
+- "https"
+host: "$(catalog.host)"
+basePath: "/cpdapi/model"
+securityDefinitions: {}
+x-ibm-configuration:
+  testable: true
+  enforced: true
+  cors:
+    enabled: true
+  assembly:
+    execute:
+    - gatewayscript:
+        title: "gatewayscript"
+        version: "1.0.0"
+        source: "apim.setvariable('data',apim.getvariable('message.body'))\n\nvar\
+          \ body=\"apikey=<Your API Key>&grant_type=urn:ibm:params:oauth:grant-type:apikey\"\
+          \napim.setvariable('message.body',body)\napim.setvariable('message.headers.content-type','application/x-www-form-urlencoded')\n\
+          apim.setvariable('message.headers.accept','application/json')\n"
+    - invoke:
+        target-url: "https://iam.ng.bluemix.net/identity/token"
+        verb: "POST"
+        stop-on-error: []
+        cache-response: "no-cache"
+    - operation-switch:
+        title: "operation-switch"
+        case:
+        - operations:
+          - verb: "post"
+            path: "/churn/predict"
+          execute:
+          - gatewayscript:
+              title: "gatewayscript"
+              version: "1.0.0"
+              source: "var resp = apim.getvariable('message.body')\n\nif(resp){\n\
+                \     apim.setvariable('message.headers.Authorization','Bearer '+\
+                \ resp.access_token)\n}\n\nvar fields = [\n                \"AGE\"\
+                ,\n                \"ACTIVITY\",\n                \"EDUCATION\",\n\
+                \                \"NEGTWEETS\",\n                \"INCOME\",\n   \
+                \             \"SEX\",\n                \"STATE\"\n            ]\n\
+                var inputValue = apim.getvariable('data')\nvar data1=[inputValue.age,\n\
+                \           inputValue.activity,\n           inputValue.education,\n\
+                \           inputValue.negtweets,\n           inputValue.income,\n\
+                \           inputValue.sex,\n           inputValue.state\n       \
+                \   ]\nvar values =[data1]\n\nvar body={\n    \"input_data\":[{\n\
+                \        \"fields\":fields,\n        \"values\":values\n    }],\n\
+                }\n\napim.setvariable('message.body',body)\napim.setvariable('message.headers.content-type','application/json')"
+          - proxy:
+              title: "proxy"
+              timeout: 60
+              verb: "keep"
+              cache-response: "protocol"
+              cache-ttl: 900
+              version: "1.0.0"
+              target-url: "https://us-south.ml.cloud.ibm.com/ml/v4/deployments/0575777d-e0b2-439d-bb55-475736fe240d/predictions?version=2021-11-04"
+        otherwise: []
+        version: "1.0.0"
+    catch: []
+  phase: "realized"
+  properties:
+    target-url:
+      value: "https://iam.ng.bluemix.net/identity/token"
+      description: ""
+      encoded: false
+  catalogs: {}
+paths:
+  /churn/predict:
+    post:
+      responses:
+        200:
+          description: "200 OK"
+      description: "model of predict customer churn"
+      parameters:
+      - name: "data"
+        required: true
+        in: "body"
+        schema:
+          $ref: "#/definitions/churn_input"
+definitions:
+  churn_input:
+    properties:
+      age:
+        type: "integer"
+        format: "int32"
+        example: "30"
+      education:
+        type: "integer"
+        format: "int32"
+        example: "3"
+      income:
+        type: "integer"
+        format: "int32"
+        example: "50000"
+      activity:
+        type: "integer"
+        format: "int32"
+        example: "3"
+      negtweets:
+        type: "integer"
+        format: "int32"
+        example: "2"
+      sex:
+        type: "string"
+        example: "\"F\""
+      state:
+        type: "string"
+        example: "\"CA\""
+    additionalProperties: false
+tags: []
+responses: {}
+consumes:
+- "application/json"
+produces:
+- "application/json"
+security: []
